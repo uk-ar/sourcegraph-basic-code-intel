@@ -5,7 +5,7 @@
 
   "title": "Basic code intelligence",
   "description": "Provides basic code intelligence for all languages using the Sourcegraph search API",
-  "url": "https://storage.googleapis.com/sourcegraph-cx-dev/cx-basic-code-intel.js",
+  "url": "http://localhost:1234/cx-basic-code-intel.js",
   "activationEvents": ["*"],
   "contributes": {
     "configuration": {

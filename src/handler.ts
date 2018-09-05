@@ -270,42 +270,47 @@ export class Handler {
     }
 
     async references(params: ReferenceParams): Promise<Location[] | null> {
-        const contents = this.fileContents.get(params.textDocument.uri)
-        if (!contents) {
-            throw new Error('did not fetch file contents')
-        }
-        const lines = contents.split('\n')
-        const line = lines[params.position.line]
-        let end = line.length
-        for (let c = params.position.character; c < line.length; c++) {
-            if (!identCharPattern.test(line[c])) {
-                end = c
-                break
-            }
-        }
-        let start = 0
-        for (let c = params.position.character; c >= 0; c--) {
-            if (!identCharPattern.test(line[c])) {
-                start = c + 1
-                break
-            }
-        }
-        if (start >= end) {
-            return null
-        }
-        const searchToken = line.substring(start, end)
 
-        const localResultsPromise = this.api.search(
-            makeQuery(searchToken, false, params.textDocument.uri, true, false)
-        )
-        const nonLocalResultsPromise = this.api.search(
-            makeQuery(searchToken, false, params.textDocument.uri, false, true)
-        )
+        console.log('here')
 
-        const results: Result[] = []
-        return results
-            .concat(await localResultsPromise)
-            .concat(await nonLocalResultsPromise)
-            .map(resultToLocation)
+        return Promise.resolve([])
+
+        // const contents = this.fileContents.get(params.textDocument.uri)
+        // if (!contents) {
+        //     throw new Error('did not fetch file contents')
+        // }
+        // const lines = contents.split('\n')
+        // const line = lines[params.position.line]
+        // let end = line.length
+        // for (let c = params.position.character; c < line.length; c++) {
+        //     if (!identCharPattern.test(line[c])) {
+        //         end = c
+        //         break
+        //     }
+        // }
+        // let start = 0
+        // for (let c = params.position.character; c >= 0; c--) {
+        //     if (!identCharPattern.test(line[c])) {
+        //         start = c + 1
+        //         break
+        //     }
+        // }
+        // if (start >= end) {
+        //     return null
+        // }
+        // const searchToken = line.substring(start, end)
+
+        // const localResultsPromise = this.api.search(
+        //     makeQuery(searchToken, false, params.textDocument.uri, true, false)
+        // )
+        // const nonLocalResultsPromise = this.api.search(
+        //     makeQuery(searchToken, false, params.textDocument.uri, false, true)
+        // )
+
+        // const results: Result[] = []
+        // return results
+        //     .concat(await localResultsPromise)
+        //     .concat(await nonLocalResultsPromise)
+        //     .map(resultToLocation)
     }
 }
