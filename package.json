@@ -1,21 +1,23 @@
 {
-  "name": "cx-basic-code-intel",
+  "name": "basic-code-intel",
   "publisher": "beyang",
   "version": "0.0.0-development",
-
   "title": "Basic code intelligence",
-  "description": "Provides basic code intelligence for all languages using the Sourcegraph search API",
-  "url": "https://storage.googleapis.com/sourcegraph-cx-dev/cx-basic-code-intel.js",
-  "activationEvents": ["*"],
+  "description": "A Sourcegraph extension that provides basic jump-to-def and find-refs functionality using the Sourcegraph search API",
+  "activationEvents": [
+    "*"
+  ],
   "contributes": {
     "configuration": {
       "title": "Basic code intelligence settings",
-      "required": ["sourcegraphToken"],
       "properties": {
-        "cx-basic-code-intel": {
+        "basic-code-intel": {
           "type": "object",
           "description": "Options for basic code intelligence extension",
           "additionalProperties": false,
+          "required": [
+            "sourcegraphToken"
+          ],
           "properties": {
             "sourcegraphToken": {
               "description": "The API token for the Sourcegraph instance.",
@@ -29,7 +31,11 @@
                 "symbols": {
                   "type": "string",
                   "description": "Whether to use symbol search to complete goto definition requests. 'Local' means issue a symbol search locally and if none are found, fall back to text search globally.",
-                  "enum": ["no", "local", "yes"]
+                  "enum": [
+                    "no",
+                    "local",
+                    "yes"
+                  ]
                 }
               }
             },
@@ -49,10 +55,8 @@
       }
     }
   },
-
-  "description": "A CXP extension that provides basic jump-to-def and find-refs functionality using the Sourcegraph search API",
   "license": "MIT",
-  "main": "lib/extension.js",
+  "main": "dist/extension.js",
   "files": [
     "lib"
   ],
@@ -60,11 +64,10 @@
     "prettier": "prettier '**/*.{js?(on),ts}' --write --list-different",
     "tslint": "tslint -p tsconfig.json './src/**/*.ts'",
     "typecheck": "tsc -p tsconfig.json",
-    "build": "parcel build --no-minify --detailed-report --out-file cx-basic-code-intel.js src/extension.ts",
-    "serve": "parcel serve --no-hmr --out-file cx-basic-code-intel.js src/extension.ts",
+    "build": "parcel build --no-minify --detailed-report --out-file extension.js src/extension.ts",
+    "serve": "parcel serve --no-hmr --out-file extension.js src/extension.ts",
     "test": "TS_NODE_COMPILER_OPTIONS='{\"module\":\"commonjs\"}' mocha --require ts-node/register --require source-map-support/register --opts mocha.opts",
     "cover": "TS_NODE_COMPILER_OPTIONS='{\"module\":\"commonjs\"}' nyc --require ts-node/register --require source-map-support/register --all mocha --opts mocha.opts --timeout 10000",
-    "upload": "gsutil -h 'Cache-Control:private' cp -a public-read -r dist/* gs://sourcegraph-cx-dev/",
     "watch:typecheck": "tsc -p tsconfig.json -w",
     "watch:build": "tsc -p tsconfig.dist.json -w",
     "watch:test": "npm run test -- -w"
@@ -104,7 +107,7 @@
     "typescript": "^2.9.2"
   },
   "dependencies": {
-    "cxp": "^6.4.0",
+    "@sourcegraph/sourcegraph.proposed": "^12.0.1",
     "vscode-languageserver-types": "^3.10.0"
   },
   "sideEffects": false

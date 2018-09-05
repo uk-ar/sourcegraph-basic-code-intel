@@ -2,8 +2,8 @@ import {
     TextDocumentPositionParams,
     ReferenceParams,
     InitializeParams,
-} from 'cxp/module/protocol'
-import { DidOpenTextDocumentParams } from 'cxp/module/protocol/textDocument'
+} from '@sourcegraph/sourcegraph.proposed/module/protocol'
+import { DidOpenTextDocumentParams } from '@sourcegraph/sourcegraph.proposed/module/protocol/textDocument'
 import { API, Result } from './api'
 import { Location } from 'vscode-languageserver-types'
 
@@ -138,7 +138,7 @@ export interface Config {
      */
     sourcegraphToken: string
     definition: {
-        symbols: 'no' | 'local' | 'yes'
+        symbols?: 'no' | 'local' | 'yes'
     }
     debug: {
         traceSearch: boolean
@@ -149,18 +149,15 @@ export interface Config {
  * getAuthToken extracts the Sourcegraph auth token from the merged settings received in
  * initialize params. Throws an error if the token is not present.
  */
-function getConfig(params: InitializeParams): Config {
+function getConfig(rawConfig: Config | undefined): Config {
     const authTokErr =
         'Basic code intelligence extension could not read Sourcegraph auth token from initialize params. Create an auth token and add it to user or site settings: { "cx-basic-code-intel": { "sourcegraphToken": "${AUTH_TOKEN}" } }'
-    let cfg: Config
-    try {
-        cfg =
-            (params as any).configurationCascade.merged['cx-basic-code-intel']
-    } catch (e) {
+    if (!rawConfig) {
         throw new Error(authTokErr)
     }
 
     // Defaults
+    const cfg = { ...rawConfig }
     if (!cfg.sourcegraphToken) {
         throw new Error(authTokErr)
     }
@@ -189,11 +186,11 @@ export class Handler {
      */
     fileContents: Map<string, string>
 
-    constructor(params: InitializeParams) {
-        this.config = getConfig(params)
+    constructor(rawConfig: Config | undefined) {
+        this.config = getConfig(rawConfig)
         this.api = new API(
             this.config.debug.traceSearch,
-            this.config.sourcegraphToken,
+            this.config.sourcegraphToken
         )
         this.fileContents = new Map<string, string>()
     }

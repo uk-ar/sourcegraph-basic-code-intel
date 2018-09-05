@@ -1,55 +1,72 @@
 import {
-    createWebWorkerMessageTransports,
-    Worker,
-} from 'cxp/module/jsonrpc2/transports/webWorker'
-import { MessageType, InitializeResult, ShowMessageNotification, ShowMessageParams } from 'cxp/module/protocol'
-import { Connection, createConnection } from 'cxp/module/server/server'
-import { Handler } from './handler'
+    activateExtension,
+    DefinitionRequest,
+    DidOpenTextDocumentNotification,
+    DidOpenTextDocumentParams,
+    HoverRequest,
+    ImplementationRequest,
+    ReferencesRequest,
+    Registration,
+    RegistrationParams,
+    RegistrationRequest,
+    SourcegraphExtensionAPI,
+    TextDocumentPositionParams,
+    TypeDefinitionRequest,
+} from '@sourcegraph/sourcegraph.proposed/module/extension'
+import { createWebWorkerMessageTransports } from '@sourcegraph/sourcegraph.proposed/module/jsonrpc2/transports/webWorker'
+import { Handler, Config } from './handler'
 
-function register(connection: Connection): void {
-    // Either h or initError must be defined after initialization
-    let h: Handler, initErr: Error
+/** Entrypoint for the basic code intel Sourcegraph extension. */
+export async function run(
+    sourcegraph: SourcegraphExtensionAPI<{ 'basic-code-intel': Config }>
+): Promise<void> {
+    const handler = new Handler(
+        sourcegraph.configuration.get('basic-code-intel')
+    )
 
-    const showErr = (connection: Connection): Promise<null> => {
-        if (!initErr) {
-            throw new Error('Initialization failed, but initErr is undefined')
+    sourcegraph.windows.subscribe(windows => {
+        for (const win of windows) {
+            if (win.activeComponent) {
+                win.activeComponent.
+            }
         }
-        connection.sendNotification(ShowMessageNotification.type, {
-            type: MessageType.Error,
-            message: initErr.toString(),
-        } as ShowMessageParams)
-        return Promise.resolve(null)
+    })
+
+    // The code intel methods to handle.
+    const methods: string[] = [
+        DefinitionRequest.type.method,
+        ReferencesRequest.type.method,
+    ]
+    const registrations: Registration[] = []
+    for (const method of methods) {
+        registrations.push({
+            id: method,
+            method,
+            registerOptions: { documentSelector: ['*'] },
+        })
+
+        // Respond to LSP requests for this method.
+        sourcegraph.rawConnection.onRequest(
+            method,
+            async <P extends TextDocumentPositionParams>(params: P) => {
+                switch (method) {
+                    case DefinitionRequest.type.method:
+                    return handler.definition(params)
+                    case ReferencesRequest.type.method:
+                    return handler.references(params)
+                }
+            }
+        )
     }
 
-    connection.onInitialize(params => {
-        try {
-            h = new Handler(params)
-        } catch (e) {
-            initErr = e
-        }
-        return {
-            capabilities: {
-                definitionProvider: true,
-                referencesProvider: true,
-                textDocumentSync: { openClose: true },
-            },
-        } as InitializeResult
-    })
-    connection.onNotification(
-        'textDocument/didOpen',
-        params => (h ? h.didOpen(params) : showErr(connection))
-    )
-    connection.onRequest(
-        'textDocument/definition',
-        params => (h ? h.definition(params) : null)
-    )
-    connection.onRequest(
-        'textDocument/references',
-        params => (h ? h.references(params) : null)
-    )
+    // Tell the client that we provide these code intel features.
+    await sourcegraph.rawConnection.sendRequest(RegistrationRequest.type, {
+        registrations,
+    } as RegistrationParams)
 }
 
-declare var self: Worker
-const connection = createConnection(createWebWorkerMessageTransports(self))
-register(connection)
-connection.listen()
+// This runs in a Web Worker and communicates using postMessage with the page.
+activateExtension<Settings>(
+    createWebWorkerMessageTransports(self as DedicatedWorkerGlobalScope),
+    run
+).catch(err => console.error(err))
