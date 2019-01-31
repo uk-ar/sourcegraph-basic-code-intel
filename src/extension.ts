@@ -7,6 +7,7 @@ import { Handler, Settings, DOCUMENT_SELECTOR } from './handler'
 const DUMMY_CTX = { subscriptions: { add: (_unsubscribable: any) => void 0 } }
 
 export function activate(ctx: sourcegraph.ExtensionContext = DUMMY_CTX): void {
+    console.error('https://sourcegraph.com/extensions/sourcegraph/basic-code-intel is deprecated and will be removed in a few weeks. Enable invididual language extensions instead: https://sourcegraph.com/extensions?query=category%3A"Programming+languages"')
     const h = new Handler()
 
     ctx.subscriptions.add(

@@ -2,8 +2,8 @@
   "name": "basic-code-intel",
   "publisher": "sourcegraph",
   "version": "0.0.0-development",
-  "title": "Basic code intelligence",
-  "description": "Provides basic code intelligence for all languages using the Sourcegraph search API",
+  "title": "Basic code intelligence (deprecated: enable invididual language extensions instead)",
+  "description": "Provides basic code intelligence for all languages using the Sourcegraph search API (deprecated: enable invididual language extensions instead)",
   "repository": {
     "type": "git",
     "url": "https://github.com/sourcegraph/sourcegraph-basic-code-intel"
