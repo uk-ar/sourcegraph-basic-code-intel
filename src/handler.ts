@@ -1,5 +1,6 @@
 import * as sourcegraph from 'sourcegraph'
 import { API, Result, parseUri } from './api'
+import * as _ from 'lodash'
 
 /**
  * identCharPattern is used to match identifier tokens
@@ -11,43 +12,43 @@ const identCharPattern = /[A-Za-z0-9_]/
  * The elements of this array *must* be disjoint sets. Don't refer to this variable directly.
  * Instead, call fileExtTerm.
  */
-const fileExtsSets = [
-    ['h', 'c', 'hpp', 'cpp', 'm', 'cc'],
-    ['java'],
-    ['go'],
-    ['js'],
-    ['ts'],
-    ['rb', 'erb'],
-    ['py'],
-    ['php'],
-    ['css'],
-    ['cs'],
-    ['sh'],
-    ['scala'],
-    ['erl'],
-    ['r'],
-    ['swift'],
-    ['coffee'],
-    ['pl'],
-    ['thrift'],
-    ['proto'],
-    ['graphql'],
-    ['pas'],
-    ['rs'],
-    ['sql'],
-    ['groovy'],
-    ['dart'],
-    ['kt', 'ktm', 'kts'],
-    ['f', 'for', 'f90', 'f95', 'f03'],
-    ['hs'],
-    ['lua'],
-    ['lisp'],
-    ['jl'],
-    ['clj']
-]
+const fileExtsSets: { [name: string]: string[] } = {
+    cpp: ['h', 'c', 'hpp', 'cpp', 'm', 'cc'],
+    java: ['java'],
+    go: ['go'],
+    typescript: ['js', 'ts'],
+    ruby: ['rb', 'erb'],
+    python: ['py'],
+    php: ['php'],
+    css: ['css'],
+    csharp: ['cs'],
+    shell: ['sh'],
+    scala: ['scala'],
+    erlang: ['erl'],
+    r: ['r'],
+    swift: ['swift'],
+    coffeescript: ['coffee'],
+    perl: ['pl'],
+    thrift: ['thrift'],
+    protobuf: ['proto'],
+    graphql: ['graphql'],
+    pascal: ['pas'],
+    rust: ['rs'],
+    sql: ['sql'],
+    groovy: ['groovy'],
+    dart: ['dart'],
+    kotlin: ['kt', 'ktm', 'kts'],
+    fortran: ['f', 'for', 'f90', 'f95', 'f03'],
+    haskell: ['hs'],
+    lua: ['lua'],
+    lisp: ['lisp'],
+    julia: ['jl'],
+    clojure: ['clj'],
+}
+
 const fileExtToTerm = new Map<string, string>()
 function initFileExtToTerm() {
-    for (const s of fileExtsSets) {
+    for (const s of _.values(fileExtsSets)) {
         const extRegExp = `file:\.(${s.join('|')})$`
         for (const e of s) {
             fileExtToTerm.set(e, extRegExp)
@@ -59,9 +60,16 @@ initFileExtToTerm()
 /**
  * Selects documents that the extension works on.
  */
-export const DOCUMENT_SELECTOR: sourcegraph.DocumentSelector = fileExtsSets
-    .reduce((all, exts) => all.concat(exts), [])
-    .map(ext => ({ pattern: `*.${ext}` }))
+export function DOCUMENT_SELECTOR(
+    languageBlacklist: string[]
+): sourcegraph.DocumentSelector {
+    return _.chain(fileExtsSets)
+        .omit(languageBlacklist)
+        .values()
+        .reduce((all: string[], exts) => all.concat(exts), [])
+        .map(ext => ({ pattern: `*.${ext}` }))
+        .value()
+}
 
 /**
  * fileExtTerm returns the search term to use to filter to specific file extensions

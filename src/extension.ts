@@ -2,94 +2,129 @@ import * as sourcegraph from 'sourcegraph'
 import { from, Observable } from 'rxjs'
 import { first, map, distinctUntilChanged, finalize } from 'rxjs/operators'
 import { Handler, Settings, DOCUMENT_SELECTOR } from './handler'
+import * as _ from 'lodash'
 
 // No-op for Sourcegraph versions prior to 3.0-preview
 const DUMMY_CTX = { subscriptions: { add: (_unsubscribable: any) => void 0 } }
 
 export function activate(ctx: sourcegraph.ExtensionContext = DUMMY_CTX): void {
-    console.error('https://sourcegraph.com/extensions/sourcegraph/basic-code-intel is deprecated and will be removed in a few weeks. Enable invididual language extensions instead: https://sourcegraph.com/extensions?query=category%3A"Programming+languages"')
-    const h = new Handler()
+    function afterActivate(): void {
+        console.error(
+            'https://sourcegraph.com/extensions/sourcegraph/basic-code-intel is deprecated and will be removed in a few weeks. Enable invididual language extensions instead: https://sourcegraph.com/extensions?query=category%3A"Programming+languages"'
+        )
+        const h = new Handler()
 
-    ctx.subscriptions.add(
-        sourcegraph.commands.registerCommand(
-            'basicCodeIntel.old.togglePreciseFuzzy',
-            () => {
-                // Toggle between 2 states:
-                //
-                // Enabled: basicCodeIntel.enabled = true and extensions.langserver/* = false
-                //
-                // Disabled: basicCodeIntel.enabled = false and extensions.langserver/* = true
-                //
-                // These 2 states are not inverses of each other. Enabling and disabling basic code
-                // intel might enable or disable langserver extensions in a way that the user does not
-                // expect or desire.
-                const config = sourcegraph.configuration.get<
-                    Settings & { extensions: { [id: string]: boolean } }
-                >()
+        const languageBlacklist = _.chain(
+            sourcegraph.configuration.get<
+                Settings & { extensions: { [id: string]: boolean } }
+            >().value.extensions
+        )
+            .pickBy(enabled => enabled)
+            .keys()
+            .filter(
+                extensionID => extensionID.lastIndexOf('sourcegraph/') === 0
+            )
+            .map(extensionID => extensionID.slice('sourcegraph/'.length))
+            .value()
 
-                const newEnabled = !config.get('basicCodeIntel.enabled')
-                config
-                    .update('basicCodeIntel.enabled', newEnabled)
-                    .then(async () => {
-                        const extensions = {
-                            ...(config.get('extensions') || {}),
-                        }
-                        for (const extensionID of Object.keys(extensions)) {
-                            if (
-                                extensionID.startsWith('langserver/') ||
-                                extensionID.includes('/langserver')
-                            ) {
-                                extensions[extensionID] = !newEnabled
+        ctx.subscriptions.add(
+            sourcegraph.commands.registerCommand(
+                'basicCodeIntel.old.togglePreciseFuzzy',
+                () => {
+                    // Toggle between 2 states:
+                    //
+                    // Enabled: basicCodeIntel.enabled = true and extensions.langserver/* = false
+                    //
+                    // Disabled: basicCodeIntel.enabled = false and extensions.langserver/* = true
+                    //
+                    // These 2 states are not inverses of each other. Enabling and disabling basic code
+                    // intel might enable or disable langserver extensions in a way that the user does not
+                    // expect or desire.
+                    const config = sourcegraph.configuration.get<
+                        Settings & { extensions: { [id: string]: boolean } }
+                    >()
+
+                    const newEnabled = !config.get('basicCodeIntel.enabled')
+                    config
+                        .update('basicCodeIntel.enabled', newEnabled)
+                        .then(async () => {
+                            const extensions = {
+                                ...(config.get('extensions') || {}),
                             }
-                        }
-                        await config.update('extensions', extensions)
-                    })
-                    .catch(err => console.error(err))
-            }
-        )
-    )
-
-    ctx.subscriptions.add(
-        reregisterWhenEnablementChanges('basicCodeIntel.hover', true, () =>
-            sourcegraph.languages.registerHoverProvider(DOCUMENT_SELECTOR, {
-                provideHover: (doc, pos) => {
-                    let value = sourcegraph.configuration.get<Settings>().value[
-                        'basicCodeIntel.hover'
-                    ]
-                    if (value === undefined) {
-                        value = true
-                    }
-                    if (!value) {
-                        return null
-                    }
-                    return observableOrPromiseCompat(h.hover(doc, pos))
-                },
-            })
-        )
-    )
-    ctx.subscriptions.add(
-        reregisterWhenEnablementChanges('basicCodeIntel.enabled', true, () =>
-            sourcegraph.languages.registerDefinitionProvider(
-                DOCUMENT_SELECTOR,
-                {
-                    provideDefinition: (doc, pos) =>
-                        enabledOrNull(() =>
-                            observableOrPromiseCompat(h.definition(doc, pos))
-                        ),
+                            for (const extensionID of Object.keys(extensions)) {
+                                if (
+                                    extensionID.startsWith('langserver/') ||
+                                    extensionID.includes('/langserver')
+                                ) {
+                                    extensions[extensionID] = !newEnabled
+                                }
+                            }
+                            await config.update('extensions', extensions)
+                        })
+                        .catch(err => console.error(err))
                 }
             )
         )
-    )
-    ctx.subscriptions.add(
-        reregisterWhenEnablementChanges('basicCodeIntel.enabled', true, () =>
-            sourcegraph.languages.registerReferenceProvider(DOCUMENT_SELECTOR, {
-                provideReferences: (doc, pos) =>
-                    enabledOrNull(() =>
-                        observableOrPromiseCompat(h.references(doc, pos))
-                    ),
-            })
+
+        ctx.subscriptions.add(
+            reregisterWhenEnablementChanges('basicCodeIntel.hover', true, () =>
+                sourcegraph.languages.registerHoverProvider(
+                    DOCUMENT_SELECTOR(languageBlacklist),
+                    {
+                        provideHover: (doc, pos) => {
+                            let value = sourcegraph.configuration.get<
+                                Settings
+                            >().value['basicCodeIntel.hover']
+                            if (value === undefined) {
+                                value = true
+                            }
+                            if (!value) {
+                                return null
+                            }
+                            return observableOrPromiseCompat(h.hover(doc, pos))
+                        },
+                    }
+                )
+            )
         )
-    )
+        ctx.subscriptions.add(
+            reregisterWhenEnablementChanges(
+                'basicCodeIntel.enabled',
+                true,
+                () =>
+                    sourcegraph.languages.registerDefinitionProvider(
+                        DOCUMENT_SELECTOR(languageBlacklist),
+                        {
+                            provideDefinition: (doc, pos) =>
+                                enabledOrNull(() =>
+                                    observableOrPromiseCompat(
+                                        h.definition(doc, pos)
+                                    )
+                                ),
+                        }
+                    )
+            )
+        )
+        ctx.subscriptions.add(
+            reregisterWhenEnablementChanges(
+                'basicCodeIntel.enabled',
+                true,
+                () =>
+                    sourcegraph.languages.registerReferenceProvider(
+                        DOCUMENT_SELECTOR(languageBlacklist),
+                        {
+                            provideReferences: (doc, pos) =>
+                                enabledOrNull(() =>
+                                    observableOrPromiseCompat(
+                                        h.references(doc, pos)
+                                    )
+                                ),
+                        }
+                    )
+            )
+        )
+    }
+    setTimeout(afterActivate, 100)
 }
 
 const settingsSubscribable = new Observable<Settings>(sub => {
