@@ -125,6 +125,8 @@ export interface HandlerArgs {
     fileExts?: string[]
     /** %s format strings that return regexes (e.g. `const %s =`). */
     definitionPatterns?: string[]
+    /** %s format string that returns a regex (e.g. `Test%s`). */
+    tokenTemplate?: string
 }
 
 export class Handler {
@@ -134,6 +136,7 @@ export class Handler {
     public api = new API()
     public fileExts: string[] = []
     public definitionPatterns: string[] = []
+    public tokenTemplate: string
 
     /**
      * Constructs a new Handler that provides code intelligence on files with the given
@@ -143,9 +146,12 @@ export class Handler {
         fileExts = [],
         /** %s format strings that return regexes (e.g. `const %s =`). */
         definitionPatterns = [],
+        /** %s format string that return a regex (e.g. `Test%s`). */
+        tokenTemplate = '%s',
     }: HandlerArgs) {
         this.fileExts = fileExts
         this.definitionPatterns = definitionPatterns
+        this.tokenTemplate = tokenTemplate
     }
 
     /**
@@ -243,7 +249,10 @@ export class Handler {
         if (start >= end) {
             return null
         }
-        const searchToken = line.substring(start, end)
+        const searchToken = sprintf.sprintf(
+            this.tokenTemplate,
+            line.substring(start, end)
+        )
 
         const patternQuery = (
             scope: Scope,
