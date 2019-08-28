@@ -33,18 +33,23 @@ async function queryLSIF({
     method,
     path,
     position,
+    page,
 }: {
     doc: sourcegraph.TextDocument
     method: string
     path: string
     position: LSP.Position
+    page?: string
 }): Promise<any> {
     const url = new URL(
-        '.api/lsif/request',
+        `.api/lsif/${method}`,
         sourcegraph.internal.sourcegraphURL
     )
     url.searchParams.set('repository', repositoryFromDoc(doc))
     url.searchParams.set('commit', commitFromDoc(doc))
+    if (page) {
+        url.searchParams.set('page', page)
+    }
 
     const response = await fetch(url.href, {
         method: 'POST',
@@ -53,15 +58,20 @@ async function queryLSIF({
             'x-requested-with': 'Basic code intel',
         }),
         body: JSON.stringify({
-            method,
             path,
             position,
         }),
     })
     if (!response.ok) {
-        throw new Error(`LSIF /request returned ${response.statusText}`)
+        throw new Error(`LSIF /${method} returned ${response.statusText}`)
     }
-    return await response.json()
+
+    const {data, nextPage} = await response.json()
+    if (nextPage) {
+        data.push(...await queryLSIF({doc, method, path, position, page: nextPage}))
+    }
+
+    return data
 }
 
 /**
